@@ -22,15 +22,17 @@ namespace SnakeHrdy
     public partial class MainWindow : Window
     {
         private const int SnakeSquareSize = 20;
-        private const int SnakeSpeed = 100; // in milliseconds
+        private const double SnakeSpeed = 0.2; // movement per frame
         private const int InitialSnakeLength = 5;
         private const int FoodSquareSize = 20;
 
         private List<Point> snakeParts = new List<Point>();
         private Point snakeDirection = new Point(1, 0);
         private Point currentFoodPosition;
-        private DispatcherTimer gameTimer = new DispatcherTimer();
         private Random random = new Random();
+        private bool gameIsRunning;
+        private bool isPaused;
+        private double timeSinceLastMove = 0;
 
         public MainWindow()
         {
@@ -40,52 +42,62 @@ namespace SnakeHrdy
 
         private void InitializeGame()
         {
-            gameTimer.Tick += GameTick;
-            gameTimer.Interval = TimeSpan.FromMilliseconds(SnakeSpeed);
-            gameTimer.Start();
+            gameIsRunning = true;
+            isPaused = false;
+            timeSinceLastMove = 0;
+
+            CompositionTarget.Rendering -= OnRender;
+            CompositionTarget.Rendering += OnRender;
 
             snakeParts.Clear();
+            snakeDirection = new Point(1, 0);
             for (int i = 0; i < InitialSnakeLength; i++)
             {
                 snakeParts.Add(new Point(100 - i * SnakeSquareSize, 100));
             }
 
             GenerateFood();
+            DrawGame();
+            this.KeyDown -= OnKeyDown;
             this.KeyDown += OnKeyDown;
-            DrawSnake();
         }
 
-        private void GameTick(object sender, EventArgs e)
+        private void OnRender(object sender, EventArgs e)
         {
-            MoveSnake();
-            CheckCollision();
-            DrawSnake();
+            if (!gameIsRunning || isPaused)
+                return;
+
+            timeSinceLastMove += SnakeSpeed;
+
+            if (timeSinceLastMove >= 1)
+            {
+                MoveSnake();
+                CheckCollision();
+                DrawGame();
+                timeSinceLastMove = 0;
+            }
         }
 
         private void MoveSnake()
         {
-            // Calculate the new head position
             Point newHeadPosition = new Point(
                 snakeParts[0].X + snakeDirection.X * SnakeSquareSize,
                 snakeParts[0].Y + snakeDirection.Y * SnakeSquareSize
             );
 
-            // Add the new head position
             snakeParts.Insert(0, newHeadPosition);
 
-            // Check for food collision
             if (newHeadPosition == currentFoodPosition)
             {
                 GenerateFood();
             }
             else
             {
-                // Remove the tail
                 snakeParts.RemoveAt(snakeParts.Count - 1);
             }
         }
 
-        private void DrawSnake()
+        private void DrawGame()
         {
             GameCanvas.Children.Clear();
 
@@ -96,7 +108,9 @@ namespace SnakeHrdy
                 {
                     Width = SnakeSquareSize,
                     Height = SnakeSquareSize,
-                    Fill = Brushes.Green
+                    Fill = Brushes.Green,
+                    Stroke = Brushes.Black, // Add outline color
+                    StrokeThickness = 1
                 };
                 Canvas.SetLeft(rectangle, part.X);
                 Canvas.SetTop(rectangle, part.Y);
@@ -104,15 +118,15 @@ namespace SnakeHrdy
             }
 
             // Draw the food
-            Rectangle foodRectangle = new Rectangle
+            Ellipse foodEllipse = new Ellipse
             {
                 Width = FoodSquareSize,
                 Height = FoodSquareSize,
                 Fill = Brushes.Red
             };
-            Canvas.SetLeft(foodRectangle, currentFoodPosition.X);
-            Canvas.SetTop(foodRectangle, currentFoodPosition.Y);
-            GameCanvas.Children.Add(foodRectangle);
+            Canvas.SetLeft(foodEllipse, currentFoodPosition.X);
+            Canvas.SetTop(foodEllipse, currentFoodPosition.Y);
+            GameCanvas.Children.Add(foodEllipse);
         }
 
         private void GenerateFood()
@@ -152,13 +166,16 @@ namespace SnakeHrdy
 
         private void GameOver()
         {
-            gameTimer.Stop();
+            gameIsRunning = false;
+            CompositionTarget.Rendering -= OnRender;
             MessageBox.Show("Game Over! Your score is: " + (snakeParts.Count - InitialSnakeLength));
             InitializeGame();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
+            if (!gameIsRunning) return;
+
             switch (e.Key)
             {
                 case Key.Up:
@@ -176,6 +193,9 @@ namespace SnakeHrdy
                 case Key.Right:
                     if (snakeDirection != new Point(-1, 0))
                         snakeDirection = new Point(1, 0);
+                    break;
+                case Key.Space:
+                    isPaused = !isPaused;
                     break;
             }
         }
