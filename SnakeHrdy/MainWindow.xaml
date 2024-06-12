@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Snake Game" Height="450" Width="800" ResizeMode="CanMinimize"
         WindowStartupLocation="CenterScreen">
-    <Canvas Name="GameCanvas" Background="Black">
+    <Canvas Name="GameCanvas" Background="DimGray">
        
     </Canvas>
    
